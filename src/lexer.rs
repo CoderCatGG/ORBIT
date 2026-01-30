@@ -77,13 +77,17 @@ macro_rules! seperator {
     };
 }
 
-macro_rules! keyword {
-    ($t:ident, $ln:expr, $ci:expr, $ty:ident) => {
-        $t.push(DataToken {
-            ty: Token::Keyword(Keyword::$ty),
-            pos: ($ln+1, $ci),
-        })
-    };
+fn match_keyword(text: &str) -> Token {
+    match text {
+        "if" => Token::Keyword(Keyword::If),
+        "else" => Token::Keyword(Keyword::Else),
+        "loop" => Token::Keyword(Keyword::Loop),
+        "fn" => Token::Keyword(Keyword::Function),
+        "let" => Token::Keyword(Keyword::Let),
+        "while" => Token::Keyword(Keyword::While),
+        "debug" => Token::Keyword(Keyword::Debug),
+        ident => Token::Identifier(ident.to_string()),
+    }
 }
 
 pub fn to_tokens(text: &str) -> Vec<DataToken> {
@@ -179,7 +183,8 @@ pub fn to_tokens(text: &str) -> Vec<DataToken> {
                             char_idx += 1;
                             j += 1;
                         }
-                    }
+                    };
+
                     j += 1;
 
                     let text = &line[i..j];
@@ -187,16 +192,7 @@ pub fn to_tokens(text: &str) -> Vec<DataToken> {
                     if unidentified.is_numeric() {
                         tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Integer(text.to_string()) })
                     } else if unidentified.is_ascii_alphabetic() {
-                        match text {
-                            "if" => keyword!(tokens, line_num, i+1, If),
-                            "else" => keyword!(tokens, line_num, i+1, Else),
-                            "loop" => keyword!(tokens, line_num, i+1, Loop),
-                            "fn" => keyword!(tokens, line_num, i+1, Function),
-                            "let" => keyword!(tokens, line_num, i+1, Let),
-                            "while" => keyword!(tokens, line_num, i+1, While),
-                            "debug" => keyword!(tokens, line_num, i+1, Debug),
-                            ident => tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Identifier(ident.to_string()) })
-                        }
+                        tokens.push(DataToken { ty: match_keyword(text), pos: (line_num+1, i+1) })
                     }
                 }
             }
