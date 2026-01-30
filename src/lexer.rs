@@ -1,5 +1,3 @@
-use phf::phf_map;
-
 #[derive(Copy, Clone, Debug)]
 pub enum Seperator {
     ParensOpen,
@@ -45,16 +43,6 @@ pub enum Keyword {
     Debug,
 }
 
-static KEYWORD_ATLAS: phf::Map<&str, Keyword> = phf_map!(
-    "if" => Keyword::If,
-    "else" => Keyword::Else,
-    "loop" => Keyword::Loop,
-    "fn" => Keyword::Function,
-    "let" => Keyword::Let,
-    "while" => Keyword::While,
-    "debug" => Keyword::Debug,
-);
-
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub enum Token {
@@ -84,6 +72,15 @@ macro_rules! seperator {
     ($t:ident, $ln:expr, $ci:expr, $ty:ident) => {
         $t.push(DataToken {
             ty: Token::Seperator(Seperator::$ty),
+            pos: ($ln+1, $ci),
+        })
+    };
+}
+
+macro_rules! keyword {
+    ($t:ident, $ln:expr, $ci:expr, $ty:ident) => {
+        $t.push(DataToken {
+            ty: Token::Keyword(Keyword::$ty),
             pos: ($ln+1, $ci),
         })
     };
@@ -190,10 +187,15 @@ pub fn to_tokens(text: &str) -> Vec<DataToken> {
                     if unidentified.is_numeric() {
                         tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Integer(text.to_string()) })
                     } else if unidentified.is_ascii_alphabetic() {
-                        if let Some(keyword) = KEYWORD_ATLAS.get(text) {
-                            tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Keyword(*keyword) });
-                        } else {
-                            tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Identifier(text.to_string()) })
+                        match text {
+                            "if" => keyword!(tokens, line_num, i+1, If),
+                            "else" => keyword!(tokens, line_num, i+1, Else),
+                            "loop" => keyword!(tokens, line_num, i+1, Loop),
+                            "fn" => keyword!(tokens, line_num, i+1, Function),
+                            "let" => keyword!(tokens, line_num, i+1, Let),
+                            "while" => keyword!(tokens, line_num, i+1, While),
+                            "debug" => keyword!(tokens, line_num, i+1, Debug),
+                            ident => tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Identifier(ident.to_string()) })
                         }
                     }
                 }
