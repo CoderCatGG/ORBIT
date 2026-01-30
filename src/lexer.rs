@@ -89,21 +89,6 @@ macro_rules! seperator {
     };
 }
 
-static SINGLE_CHAR_ATLAS: phf::Map<char, Token> = phf_map!(
-    '(' => Token::Seperator(Seperator::ParensOpen),
-    ')' => Token::Seperator(Seperator::ParensClosed),
-    '{' => Token::Seperator(Seperator::BracesOpen),
-    '}' => Token::Seperator(Seperator::BracesClosed),
-    ':' => Token::Seperator(Seperator::Colon),
-    ';' => Token::Seperator(Seperator::Semicolon),
-    '.' => Token::Operator(Operator::Dot),
-    '+' => Token::Operator(Operator::Plus),
-    '*' => Token::Operator(Operator::Mul),
-    '/' => Token::Operator(Operator::Div),
-    '%' => Token::Operator(Operator::Remainder),
-    '^' => Token::Operator(Operator::Xor),
-);
-
 pub fn to_tokens(text: &str) -> Vec<DataToken> {
     text.lines().enumerate().flat_map(|(line_num, line)| {
         let mut tokens: Vec<DataToken> = Vec::new();
@@ -114,93 +99,101 @@ pub fn to_tokens(text: &str) -> Vec<DataToken> {
         while let Some(curr_char) = chars.next() {
             char_idx += 1;
             
-            if let Some(token) = SINGLE_CHAR_ATLAS.get(&curr_char) {
-                tokens.push(DataToken { ty: token.clone(), pos: (line_num+1, char_idx) })
-            } else {
-                match curr_char {
-                    '=' => if chars.peek() == Some(&'=') {
-                        operator!(tokens, line_num, char_idx, Equals);
-                        chars.next();
-                        char_idx += 1;
+            match curr_char {
+                '(' => seperator!(tokens, line_num, char_idx, ParensOpen),
+                ')' => seperator!(tokens, line_num, char_idx, ParensClosed),
+                '{' => seperator!(tokens, line_num, char_idx, BracesOpen),
+                '}' => seperator!(tokens, line_num, char_idx, BracesClosed),
+                ':' => seperator!(tokens, line_num, char_idx, Colon),
+                ';' => seperator!(tokens, line_num, char_idx, Semicolon),
+                '.' => operator!(tokens, line_num, char_idx, Dot),
+                '+' => operator!(tokens, line_num, char_idx, Plus),
+                '*' => operator!(tokens, line_num, char_idx, Mul),
+                '/' => operator!(tokens, line_num, char_idx, Div),
+                '%' => operator!(tokens, line_num, char_idx, Remainder),
+                '^' => operator!(tokens, line_num, char_idx, Xor),
+                '=' => if chars.peek() == Some(&'=') {
+                    operator!(tokens, line_num, char_idx, Equals);
+                    chars.next();
+                    char_idx += 1;
+                } else {
+                    operator!(tokens, line_num, char_idx, Assign)
+                },
+                '-' => if chars.peek() == Some(&'>') {
+                    seperator!(tokens, line_num, char_idx, Arrow);
+                    chars.next();
+                    char_idx += 1;
+                } else {
+                    operator!(tokens, line_num, char_idx, Minus)
+                }
+                '!' => if chars.peek() == Some(&'=') {
+                    operator!(tokens, line_num, char_idx, NotEquals);
+                    chars.next();
+                    char_idx += 1;
+                } else {
+                    operator!(tokens, line_num, char_idx, Not)
+                },
+                '>' => if chars.peek() == Some(&'=') {
+                    operator!(tokens, line_num, char_idx, GreaterEquals);
+                    chars.next();
+                    char_idx += 1;
+                } else {
+                    operator!(tokens, line_num, char_idx, GreaterThan)
+                },
+                '<' => if chars.peek() == Some(&'<') {
+                    operator!(tokens, line_num, char_idx, LesserEquals);
+                    chars.next();
+                    char_idx += 1;
+                } else {
+                    operator!(tokens, line_num, char_idx, LesserThan)
+                },
+                '&' => if chars.peek() == Some(&'&') {
+                    operator!(tokens, line_num, char_idx, And);
+                    chars.next();
+                    char_idx += 1;
+                } else {
+                    panic!("Invalid `And` Symbol, expected `&&`, got `{:?}`", chars.peek())
+                },
+                '|' => if chars.peek() == Some(&'|') {
+                    operator!(tokens, line_num, char_idx, Or);
+                    chars.next();
+                    char_idx += 1;
+                } else {
+                    panic!("Invalid `Or` Symbol, expected `||`, got `{:?}`", chars.peek())
+                },
+                unidentified => if unidentified.is_whitespace() {
+                    seperator!(tokens, line_num, char_idx, Whitespace)
+                } else {
+                    let op = if unidentified.is_ascii_digit() {
+                        char::is_ascii_digit
                     } else {
-                        operator!(tokens, line_num, char_idx, Assign)
-                    },
-                    '-' => if chars.peek() == Some(&'>') {
-                        seperator!(tokens, line_num, char_idx, Arrow);
-                        chars.next();
-                        char_idx += 1;
-                    } else {
-                        operator!(tokens, line_num, char_idx, Minus)
-                    }
-                    '!' => if chars.peek() == Some(&'=') {
-                        operator!(tokens, line_num, char_idx, NotEquals);
-                        chars.next();
-                        char_idx += 1;
-                    } else {
-                        operator!(tokens, line_num, char_idx, Not)
-                    },
-                    '>' => if chars.peek() == Some(&'=') {
-                        operator!(tokens, line_num, char_idx, GreaterEquals);
-                        chars.next();
-                        char_idx += 1;
-                    } else {
-                        operator!(tokens, line_num, char_idx, GreaterThan)
-                    },
-                    '<' => if chars.peek() == Some(&'<') {
-                        operator!(tokens, line_num, char_idx, LesserEquals);
-                        chars.next();
-                        char_idx += 1;
-                    } else {
-                        operator!(tokens, line_num, char_idx, LesserThan)
-                    },
-                    '&' => if chars.peek() == Some(&'&') {
-                        operator!(tokens, line_num, char_idx, And);
-                        chars.next();
-                        char_idx += 1;
-                    } else {
-                        panic!("Invalid `And` Symbol, expected `&&`, got `{:?}`", chars.peek())
-                    },
-                    '|' => if chars.peek() == Some(&'|') {
-                        operator!(tokens, line_num, char_idx, Or);
-                        chars.next();
-                        char_idx += 1;
-                    } else {
-                        panic!("Invalid `Or` Symbol, expected `||`, got `{:?}`", chars.peek())
-                    },
-                    unidentified => if unidentified.is_whitespace() {
-                        seperator!(tokens, line_num, char_idx, Whitespace)
-                    } else {
-                        let op = if unidentified.is_ascii_digit() {
-                            char::is_ascii_digit
+                        char::is_ascii_alphabetic
+                    };
+
+                    let i = char_idx - 1;
+                    let mut j = i;
+
+                    #[allow(clippy::while_let_on_iterator)]
+                    while let Some(c) = chars.peek() {
+                        if !op(c) || c.is_whitespace() {
+                            break;
                         } else {
-                            char::is_ascii_alphabetic
-                        };
-
-                        let i = char_idx - 1;
-                        let mut j = i;
-
-                        #[allow(clippy::while_let_on_iterator)]
-                        while let Some(c) = chars.peek() {
-                            if !op(c) || c.is_whitespace() {
-                                break;
-                            } else {
-                                chars.next();
-                                char_idx += 1;
-                                j += 1;
-                            }
+                            chars.next();
+                            char_idx += 1;
+                            j += 1;
                         }
-                        j += 1;
+                    }
+                    j += 1;
 
-                        let text = &line[i..j];
+                    let text = &line[i..j];
 
-                        if unidentified.is_numeric() {
-                            tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Integer(text.to_string()) })
-                        } else if unidentified.is_ascii_alphabetic() {
-                            if let Some(keyword) = KEYWORD_ATLAS.get(text) {
-                                tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Keyword(*keyword) });
-                            } else {
-                                tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Identifier(text.to_string()) })
-                            }
+                    if unidentified.is_numeric() {
+                        tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Integer(text.to_string()) })
+                    } else if unidentified.is_ascii_alphabetic() {
+                        if let Some(keyword) = KEYWORD_ATLAS.get(text) {
+                            tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Keyword(*keyword) });
+                        } else {
+                            tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Identifier(text.to_string()) })
                         }
                     }
                 }
