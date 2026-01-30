@@ -1,5 +1,5 @@
-#[derive(Clone, Debug)]
-pub enum TokenType {
+#[derive(Copy, Clone, Debug)]
+pub enum Seperator {
     ParensOpen,
     ParensClosed,
     BracesOpen,
@@ -9,8 +9,10 @@ pub enum TokenType {
     Semicolon,
     Newline,
     Whitespace,
-    Identifier(String),
-    Integer(String),
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Operator {
     Dot,
     Plus,
     Minus,
@@ -27,29 +29,65 @@ pub enum TokenType {
     GreaterEquals,
     LesserThan,
     LesserEquals,
+    Assign,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Keyword {
     If,
     Else,
     Loop,
     Function,
-    Assign,
     Let,
     While,
     Debug,
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub enum Token {
+    Identifier(String),
+    Integer(String),
+    Seperator(Seperator),
+    Operator(Operator),
+    Keyword(Keyword),
+}
+
 #[derive(Clone, Debug)]
 pub struct DataToken {
-    pub ty: TokenType,
+    pub ty: Token,
     pub pos: (usize /* Line */, usize /* Coloumn */),
 }
 
-macro_rules! token {
+macro_rules! operator {
     ($t:ident, $ln:expr, $ci:expr, $ty:ident) => {
         $t.push(DataToken {
-            ty: TokenType::$ty,
+            ty: Token::Operator(Operator::$ty),
             pos: ($ln+1, $ci),
         })
     };
+}
+
+macro_rules! seperator {
+    ($t:ident, $ln:expr, $ci:expr, $ty:ident) => {
+        $t.push(DataToken {
+            ty: Token::Seperator(Seperator::$ty),
+            pos: ($ln+1, $ci),
+        })
+    };
+}
+
+fn match_keyword(text: &str) -> Token {
+    match text {
+        "if" => Token::Keyword(Keyword::If),
+        "else" => Token::Keyword(Keyword::Else),
+        "loop" => Token::Keyword(Keyword::Loop),
+        "fn" => Token::Keyword(Keyword::Function),
+        "let" => Token::Keyword(Keyword::Let),
+        "while" => Token::Keyword(Keyword::While),
+        "debug" => Token::Keyword(Keyword::Debug),
+        ident => Token::Identifier(ident.to_string()),
+    }
 }
 
 pub fn to_tokens(text: &str) -> Vec<DataToken> {
@@ -63,69 +101,69 @@ pub fn to_tokens(text: &str) -> Vec<DataToken> {
             char_idx += 1;
             
             match curr_char {
-                '(' => token!(tokens, line_num, char_idx, ParensOpen),
-                ')' => token!(tokens, line_num, char_idx, ParensClosed),
-                '{' => token!(tokens, line_num, char_idx, BracesOpen),
-                '}' => token!(tokens, line_num, char_idx, BracesClosed),
-                ':' => token!(tokens, line_num, char_idx, Colon),
-                ';' => token!(tokens, line_num, char_idx, Semicolon),
-                '.' => token!(tokens, line_num, char_idx, Dot),
-                '+' => token!(tokens, line_num, char_idx, Plus),
-                '*' => token!(tokens, line_num, char_idx, Mul),
-                '/' => token!(tokens, line_num, char_idx, Div),
-                '%' => token!(tokens, line_num, char_idx, Remainder),
-                '^' => token!(tokens, line_num, char_idx, Xor),
+                '(' => seperator!(tokens, line_num, char_idx, ParensOpen),
+                ')' => seperator!(tokens, line_num, char_idx, ParensClosed),
+                '{' => seperator!(tokens, line_num, char_idx, BracesOpen),
+                '}' => seperator!(tokens, line_num, char_idx, BracesClosed),
+                ':' => seperator!(tokens, line_num, char_idx, Colon),
+                ';' => seperator!(tokens, line_num, char_idx, Semicolon),
+                '.' => operator!(tokens, line_num, char_idx, Dot),
+                '+' => operator!(tokens, line_num, char_idx, Plus),
+                '*' => operator!(tokens, line_num, char_idx, Mul),
+                '/' => operator!(tokens, line_num, char_idx, Div),
+                '%' => operator!(tokens, line_num, char_idx, Remainder),
+                '^' => operator!(tokens, line_num, char_idx, Xor),
                 '=' => if chars.peek() == Some(&'=') {
-                    token!(tokens, line_num, char_idx, Equals);
+                    operator!(tokens, line_num, char_idx, Equals);
                     chars.next();
                     char_idx += 1;
                 } else {
-                    token!(tokens, line_num, char_idx, Assign)
+                    operator!(tokens, line_num, char_idx, Assign)
                 },
                 '-' => if chars.peek() == Some(&'>') {
-                    token!(tokens, line_num, char_idx, Arrow);
+                    seperator!(tokens, line_num, char_idx, Arrow);
                     chars.next();
                     char_idx += 1;
                 } else {
-                    token!(tokens, line_num, char_idx, Minus)
+                    operator!(tokens, line_num, char_idx, Minus)
                 }
                 '!' => if chars.peek() == Some(&'=') {
-                    token!(tokens, line_num, char_idx, NotEquals);
+                    operator!(tokens, line_num, char_idx, NotEquals);
                     chars.next();
                     char_idx += 1;
                 } else {
-                    token!(tokens, line_num, char_idx, Not)
+                    operator!(tokens, line_num, char_idx, Not)
                 },
                 '>' => if chars.peek() == Some(&'=') {
-                    token!(tokens, line_num, char_idx, GreaterEquals);
+                    operator!(tokens, line_num, char_idx, GreaterEquals);
                     chars.next();
                     char_idx += 1;
                 } else {
-                    token!(tokens, line_num, char_idx, GreaterThan)
+                    operator!(tokens, line_num, char_idx, GreaterThan)
                 },
                 '<' => if chars.peek() == Some(&'<') {
-                    token!(tokens, line_num, char_idx, LesserEquals);
+                    operator!(tokens, line_num, char_idx, LesserEquals);
                     chars.next();
                     char_idx += 1;
                 } else {
-                    token!(tokens, line_num, char_idx, LesserThan)
+                    operator!(tokens, line_num, char_idx, LesserThan)
                 },
                 '&' => if chars.peek() == Some(&'&') {
-                    token!(tokens, line_num, char_idx, And);
+                    operator!(tokens, line_num, char_idx, And);
                     chars.next();
                     char_idx += 1;
                 } else {
                     panic!("Invalid `And` Symbol, expected `&&`, got `{:?}`", chars.peek())
                 },
                 '|' => if chars.peek() == Some(&'|') {
-                    token!(tokens, line_num, char_idx, Or);
+                    operator!(tokens, line_num, char_idx, Or);
                     chars.next();
                     char_idx += 1;
                 } else {
                     panic!("Invalid `Or` Symbol, expected `||`, got `{:?}`", chars.peek())
                 },
                 unidentified => if unidentified.is_whitespace() {
-                    token!(tokens, line_num, char_idx, Whitespace)
+                    seperator!(tokens, line_num, char_idx, Whitespace)
                 } else {
                     let op = if unidentified.is_ascii_digit() {
                         char::is_ascii_digit
@@ -145,30 +183,22 @@ pub fn to_tokens(text: &str) -> Vec<DataToken> {
                             char_idx += 1;
                             j += 1;
                         }
-                    }
+                    };
+
                     j += 1;
 
                     let text = &line[i..j];
 
                     if unidentified.is_numeric() {
-                        tokens.push(DataToken { pos: (line_num+1, i+1), ty: TokenType::Integer(text.to_string()) })
+                        tokens.push(DataToken { pos: (line_num+1, i+1), ty: Token::Integer(text.to_string()) })
                     } else if unidentified.is_ascii_alphabetic() {
-                        match text {
-                            "if" => token!(tokens, line_num, i+1, If),
-                            "else" => token!(tokens, line_num, i+1, Else),
-                            "loop" => token!(tokens, line_num, i+1, Loop),
-                            "fn" => token!(tokens, line_num, i+1, Function),
-                            "let" => token!(tokens, line_num, i+1, Let),
-                            "while" => token!(tokens, line_num, i+1, While),
-                            "debug" => token!(tokens, line_num, i+1, Debug),
-                            ident => tokens.push(DataToken { pos: (line_num+1, i+1), ty: TokenType::Identifier(ident.to_string()) })
-                        }
+                        tokens.push(DataToken { ty: match_keyword(text), pos: (line_num+1, i+1) })
                     }
-                },
+                }
             }
         }
 
-        tokens.push(DataToken { ty: TokenType::Newline, pos: (line_num + 1, char_idx + 1)});
+        seperator!(tokens, line_num, char_idx+1, Newline);
 
         tokens
     }).collect::<Vec<DataToken>>()
